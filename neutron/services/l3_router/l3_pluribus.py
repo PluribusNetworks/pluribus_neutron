@@ -18,14 +18,13 @@ from neutron.db import db_base_plugin_v2
 from neutron.db import extraroute_db
 from neutron.db import l3_gwmode_db
 from neutron.db import l3_db
-from neutron.openstack.common import importutils
+from oslo.utils import importutils
 from neutron.plugins.common import constants
 
 LOG = logging.getLogger(__name__)
 
 
 class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
-                           db_base_plugin_v2.CommonDbMixin,
                            extraroute_db.ExtraRoute_db_mixin,
                            l3_gwmode_db.L3_NAT_db_mixin):
 
@@ -66,8 +65,10 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         r = self.create_router_db(context, router)
         try:
             self.server.create_router(**r)
+            LOG.info(_LI("Pluribus successfully created router", r['id']))
+
         except Exception as e:
-	    LOG.error("Failed to create router, rolling back")
+            LOG.error(_LE("Failed to create router, rolling back"))
             self.delete_router_db(context, r['id'])
             raise e
 
@@ -82,12 +83,13 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         r = {'router_id': id}
         try:
             self.server.delete_router(**r)
+            LOG.info(_LI("Pluribus successfully deleted router", id))
         except Exception as e:
-	    LOG.error("Failed to delete router")
+            LOG.error(_LE("Failed to delete router", id))
             raise e
 
     def update_router(self, context, id, router):
-        LOG.debug(("update_router() called: {} {}", id, router))
+        LOG.debug(("update_router() called", id, router))
 
         ext_gw_subnet_info = None
         if self.router_has_external_gateway(context, id):
@@ -104,7 +106,6 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # get the external subnet id
             device_filter = {'device_id': [id],
                              'device_owner': ["network:router_gateway"]}
-            # TODO: change the self call
             ext_port_list = self.get_ports(context, filters=device_filter)
             LOG.debug(('external port = ', ext_port_list))
             ext_port = ext_port_list[0]
@@ -113,12 +114,8 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             updt_router['external_port'] = []
 
             # assign a IP address
-            # TODO: change the self call
             ports = self.create_port_on_external_network(context, id,
                                                          updt_router['name'])
-            LOG.debug(('port router_gateway ', ports))
-            LOG.debug(('port for network ', ports['network_id']))
-            LOG.debug(('port = ', ports['fixed_ips'][0]['ip_address']))
 
             port_info = {'network_id': ports['network_id'],
                          'port': ports}
@@ -131,7 +128,6 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             LOG.debug(('setting external gateway to None'))
 
             if ext_gw_subnet_info is not None:
-                # TODO: change the self call
                 all_ports = self.get_ports(context)
 
                 # remove the port
@@ -139,7 +135,12 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 self.delete_ports_with_name(context, all_ports, port_name)
                 updt_router['external_gw_cidr'] = ext_gw_subnet_info['cidr']
 
-        self.server.update_router(**updt_router)
+        try:
+            self.server.update_router(**updt_router)
+            LOG.info(_LI("Pluribus updated the router successfully", id))
+        except Exception as e:
+            LOG.error(_LE("Failed to update the router", id))
+            raise e
 
         return updt_router
 
@@ -155,7 +156,7 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             # get the subnet information and the network it belongs to
             sbn = self.get_subnet(context, interface_info['subnet_id'])
 
-            LOG.debug(("subnet = {}", sbn))
+            LOG.debug(("subnet", sbn))
             network_id = sbn['network_id']
             subnet_id = sbn['id']
             cidr = sbn['cidr']
@@ -209,8 +210,13 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         try:
             self.server.plug_router_interface(**router)
+            LOG.info(_LI("Pluribus added the router interface successfully"
+                         "on port", interface['port_id'],
+                         "on subnet", interface['subnet_id']))
         except Exception as e:
-            LOG.debug(('add router interface failed, rolling back'))
+            LOG.error(_LE('add router interface failed, rolling back for'
+                          ' port', interface['port_id'], 'and subnet',
+                          interface['subnet_id']))
             super(PluribusRouterPlugin, self).\
                 remove_router_interface(context, router_id, interface_info)
 
@@ -243,13 +249,14 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         if 'subnet_id' not in interface_info:
             if 'port_id' not in interface_info:
-                LOG.debug(('either port_id or subnet_id needs to be present'))
+                LOG.warn(_LW('either port_id or subnet_id needs to be'
+                         ' present'))
                 return
 
             pfilter = {'id': [interface_info['port_id']]}
             port = self.get_ports(context, filters=pfilter)
-            if port is None:
-                LOG.debug(("remove router interface, unable to find port"))
+            if not port:
+                LOG.warn(_LW("remove router interface, unable to find port"))
                 return
 
             subnet_id = port[0]['fixed_ips'][0]['subnet_id']
@@ -270,7 +277,13 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             ports = self.get_ports(context)
             self.delete_ports_with_name(context, ports, port_name)
 
-        self.server.unplug_router_interface(**router)
+        try:
+            self.server.unplug_router_interface(**router)
+            LOG.info(_LI("Pluribus removed the router interface successfully"
+                     "from router", router_id, "on subnet", subnet_id))
+        except Exception as e:
+            LOG.error(_LE('remove router interface failed for router',
+                      router_id, 'and subnet', subnet_id))
 
     def get_external_port_info(self, context, router_id):
         LOG.debug(('get_external_port_info ', router_id))
@@ -326,8 +339,7 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             'fixed_ips': [fixed_ip]
         }
 
-        args = [context, {'port': port_data}]
-        ports = self.create_port(context, {'port': port_data})
+        ports = self.core_plugin.create_port(context, {'port': port_data})
 
         ports['cidr'] = ext_subnet_info['cidr']
 
@@ -338,7 +350,6 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         for p in port_list:
             if port_name == p['name']:
                 LOG.debug(('deleting port with name, id ', p['name'], p['id']))
-                args = [context, p['id'], False]
                 self.core_plugin.delete_port(context, p['id'])
 
     def update_port(self, context, id, port):
@@ -357,14 +368,17 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         return updated_port
 
     def create_floatingip(self, context, floatingip):
-        LOG.debug(("create_floatingip {}", floatingip))
+        LOG.debug(("create_floatingip", floatingip))
         fip = super(PluribusRouterPlugin, self).create_floatingip(context,
                                                                   floatingip)
 
         try:
             self.server.create_floatingip(**fip)
+            LOG.info(_LI('Pluribus created floating IP successfully',
+                     fip['id']))
         except Exception as e:
-            LOG.debug(('create_floating_ip failed, rolling back'))
+            LOG.error(_LE('create_floatingip failed, rolling back',
+                      fip['id']))
             super(PluribusRouterPlugin, self).delete_floatingip(
                 context, fip['id'])
             raise e
@@ -372,24 +386,34 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         return fip
 
     def update_floatingip(self, context, id, floatingip):
-        LOG.debug(("update_floatingip {} {}", id, floatingip))
+        LOG.debug(("update_floatingip", id, floatingip))
+        # get the floating ip information
         ufip = super(PluribusRouterPlugin, self).update_floatingip(context, id,
                                                                    floatingip)
-        # get the floating ip information
         LOG.debug(("floatingip = ", ufip))
         # get the port information
         if ufip['port_id'] is not None:
             subnet_id = self._get_floatingip_subnet(context, ufip)
             ufip['subnet_id'] = subnet_id
-        self.server.update_floatingip(**ufip)
+        try:
+            self.server.update_floatingip(**ufip)
+            LOG.info(_LI('Pluribus updated floating IP successfully', id))
+        except Exception as e:
+            LOG.error(_LE('update_floatingip failed', id))
+            raise e
         return ufip
 
     def delete_floatingip(self, context, id):
-        LOG.debug(("delete_floatingip {}", id))
+        LOG.debug(("delete_floatingip", id))
 
         super(PluribusRouterPlugin, self).delete_floatingip(context, id)
         fip = {'id': id}
-        self.server.delete_floatingip(**fip)
+        try:
+            self.server.delete_floatingip(**fip)
+            LOG.info(_LI('Pluribus deleted floating IP successfully', id))
+        except Exception as e:
+            LOG.error(_LE('delete_floatingip failed', id))
+            raise e
 
     def _get_floatingip_subnet(self, context, fip):
         LOG.debug(("get_floatingip_subnet ", fip))
@@ -413,4 +437,9 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 super(PluribusRouterPlugin, self).disassociate_floatingips(
                     context, port_id, do_notify)
                 fid = {'id': floating_ip_ids}
-                self.server.disassociate_floatingips(**fid)
+                try:
+                    self.server.disassociate_floatingips(**fid)
+                except Exception as e:
+                    LOG.error(_LE('disassociate_floatingips failed',
+                              fid['id']))
+                    raise e
