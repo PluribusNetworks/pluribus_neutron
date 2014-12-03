@@ -433,12 +433,14 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                            filter_by(fixed_port_id=port_id))
             for entry in floating_ip:
                 floating_ip_ids.append(entry['id'])
-                LOG.debug(("disassociate_floatingips {}", port_id))
+                LOG.debug(("disassociate_floatingips", port_id))
                 super(PluribusRouterPlugin, self).disassociate_floatingips(
                     context, port_id, do_notify)
                 fid = {'id': floating_ip_ids}
                 try:
                     self.server.disassociate_floatingips(**fid)
+		    LOG.info(_LI('Pluribus disassociated floating IP'
+				 ' successfully', fid['id']))
                 except Exception as e:
                     LOG.error(_LE('disassociate_floatingips failed',
                               fid['id']))

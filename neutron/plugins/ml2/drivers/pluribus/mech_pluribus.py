@@ -42,34 +42,42 @@ class PluribusDriver(driver_api.MechanismDriver):
                   {'module': __name__,
                    'name': self.__class__.__name__})
 
+    @property
+    def core_plugin(self):
+        return manager.NeutronManager.get_plugin()
+
     def create_network_postcommit(self, context):
         LOG.debug(('Pluribus Driver create_network_postcommit() called:',
                    context.current))
         network = context.current
-	network['router_external'] = network.pop('router:external')
+        network['router_external'] = network.pop('router:external')
         self.server.create_network(**network)
-        return
+        LOG.info(_LI("Pluribus successfully created network",
+                 network['name']))
 
     def update_network_postcommit(self, context):
-        LOG.debug(('Update Network operation is not supported by Pluribus'))
+        LOG.debug(('update network operation is not supported by Pluribus'))
         raise ml2_exc.MechanismDriverError(method='update_network_postcommit')
 
     def delete_network_postcommit(self, context):
         LOG.debug(('Pluribus delete_network_postcommit() called:',
                    context.current))
         network = context.current
-	network['router_external'] = network.pop('router:external')
+        network['router_external'] = network.pop('router:external')
         self.server.delete_network(**network)
-        return
+        LOG.info(_LI("Pluribus successfully deleted network",
+                 network['name']))
 
     def create_port_postcommit(self, context):
         LOG.debug(('Pluribus create_port_postcommit() called:',
                    context.current))
         port = context.current
         # port names ending with '-dhcp' are specially used by Pluribus
-        if not port['name'].endswith('-dhcp'):
-            self.server.create_port(**port)
-        return
+        if port['name'].endswith('-dhcp'):
+            raise ml2_exc.MechanismDriverError(method='create_port_postcommit')
+
+        self.server.create_port(**port)
+        LOG.info(_LI("Pluribus successfully created port", port['name']))
 
     def bind_port(self, context):
         LOG.debug("Attempting to bind port %(port)s on network %(network)s",
@@ -86,7 +94,8 @@ class PluribusDriver(driver_api.MechanismDriver):
                    context.current))
         port = context.current
         self.server.update_port(**port)
-        return
+        LOG.info(_LI("Pluribus successfully updated port",
+                 port['name']))
 
     def delete_port_postcommit(self, context):
         LOG.debug(('Pluribus delete_port_postcommit() called:',
@@ -96,27 +105,18 @@ class PluribusDriver(driver_api.MechanismDriver):
         service_plugins = manager.NeutronManager.get_service_plugins()
         l3_plugin = service_plugins.get(constants.L3_ROUTER_NAT)
         l3_plugin.disassociate_floatingips(context._plugin_context, port['id'])
-
+        LOG.info(_LI("Pluribus successfully deleted port",
+                 port['name']))
         self.server.delete_port(**port)
-        return
 
     def create_subnet_postcommit(self, context):
-        """For this model this method will be delegated to vswitch plugin."""
         LOG.debug(('Pluribus create_subnet_postcommit() called:',
                    context.current))
         subnet = context.current
-        # check if the pn_dhcp is set to true and the subnet
-        # is also marked to use dhcp service
-        if cfg.CONF.PLURIBUS_PLUGINS[
-                'pn_dhcp'] and subnet['enable_dhcp']:
-            # add a key to tell the pn switch that we need dhcp
-            subnet['pn_dhcp'] = True
-            LOG.debug(("subnet['pn_dhcp'] = True"))
 
         # get the network information
-        core_plugin = manager.NeutronManager.get_plugin()
-        net = core_plugin.get_network(context._plugin_context,
-                                      subnet['network_id'])
+        net = self.core_plugin.get_network(context._plugin_context,
+                                           subnet['network_id'])
 
         # create a new port for dhcp endpoint on the switch if it is not marked
         # as 'external network'.
@@ -127,7 +127,6 @@ class PluribusDriver(driver_api.MechanismDriver):
                 subnet['gateway_ip'] is not None:
 
             dhcp_ip = subnet['gateway_ip']
-            LOG.debug(('dhcp_ip == ', dhcp_ip))
         else:
             fixed_ip = {'subnet_id': subnet['id']}
             port_name = subnet['name'] + '-dhcp'
@@ -143,36 +142,37 @@ class PluribusDriver(driver_api.MechanismDriver):
             }
 
             # create a port for dhcp
-            dhcp_port = core_plugin.create_port(context._plugin_context,
-                                                {'port': port_data})
+            dhcp_port = self.core_plugin.create_port(context._plugin_context,
+                                                     {'port': port_data})
             dhcp_ip = dhcp_port['fixed_ips'][0]['ip_address']
-            LOG.debug(('dhcp_ip == ', dhcp_ip))
 
+        LOG.debug(('dhcp_ip == ', dhcp_ip))
         subnet['dhcp_ip'] = dhcp_ip
 
         try:
             self.server.create_subnet(**subnet)
+            LOG.info(_LI("Pluribus successfully created subnet",
+                     subnet['name']))
         except Exception as e:
-            LOG.debug(('create_subnet failed, rolling back'))
+            LOG.error(_LE('create_subnet failed, rolling back'))
             # delete the dhcp port if enable dhcp was set
             if subnet['enable_dhcp']:
-                core_plugin.delete_port(context._plugin_context,
-                                        dhcp_port['id'], False)
+                self.core_plugin.delete_port(context._plugin_context,
+                                             dhcp_port['id'], False)
             raise e
 
         if not net['router:external']:
             # set the DHCP port status to active
             filters = {'subnet_id': [subnet['id']]}
-            dhcp_ports = core_plugin.get_ports(context._plugin_context,
-                                               filters=filters)
+            dhcp_ports = self.core_plugin.get_ports(context._plugin_context,
+                                                    filters=filters)
             for port in dhcp_ports:
                 port['status'] = const.PORT_STATUS_ACTIVE
-                core_plugin.update_port(context._plugin_context, port['id'],
-                                        {'port': port})
-        return subnet
+                self.core_plugin.update_port(context._plugin_context,
+                                             port['id'], {'port': port})
 
     def update_subnet_postcommit(self, context):
-        LOG.debug(('Update Subnet not supported by Pluribus'))
+        LOG.debug(('update subnet operation not supported by Pluribus'))
         raise ml2_exc.MechanismDriverError(method='update_subnet_postcommit')
 
     def delete_subnet_postcommit(self, context):
@@ -180,4 +180,5 @@ class PluribusDriver(driver_api.MechanismDriver):
                    context.current))
         subnet = context.current
         self.server.delete_subnet(**subnet)
-        return
+        LOG.info(_LI("Pluribus successfully deleted subnet",
+                 subnet['name']))
