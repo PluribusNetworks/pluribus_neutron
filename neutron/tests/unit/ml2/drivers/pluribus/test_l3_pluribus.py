@@ -10,9 +10,12 @@
 #
 
 import mock
+from mock import PropertyMock
 
 from neutron.services.l3_router.l3_pluribus import PluribusRouterPlugin
 from neutron.tests import base
+from oslo.config import cfg
+from oslo.utils.importutils import import_object
 
 
 class Router(object):
@@ -77,6 +80,7 @@ class PluribusRouterTestCase(base.BaseTestCase,
         self.service.server = mock_server
         self.tenant_id = 'tenant-1'
         self.context = FakeContext()
+        setattr(cfg.CONF, 'core_plugin', 'neutron.plugins.ml2.plugin.Ml2Plugin')
 
     def _get_router_dict(self):
         router = {
@@ -176,36 +180,39 @@ class PluribusRouterTestCase(base.BaseTestCase,
 
     def test_delete_router(self):
         r = {'router_id': self.router_id}
-        with mock.patch('neutron.db.l3_db.L3_NAT_dbonly_mixin.'
+        with mock.patch('neutron.db.l3_db.L3_NAT_db_mixin.'
                         'delete_router') as delete_router:
             self.service.delete_router(self.context, self.router_id)
             self.service.server.delete_router.assert_called_once_with(
                 router_id=self.router_id
             )
 
-    def test_add_router_interface(self):
+    @mock.patch('neutron.plugins.ml2.plugin.Ml2Plugin')
+    def test_add_router_interface(self, mock_ml2):
         r_intf = self._get_router_interface_dict()
 
         with mock.patch('neutron.db.l3_db.L3_NAT_db_mixin.'
                         'add_router_interface') as add_intf:
-            add_intf.return_value = r_intf
-            self.service.get_subnet = mock.Mock()
-            self.service.get_subnet.return_value = self._get_subnet_info_dict()
-            self.service.create_port = mock.Mock()
-            self.service.create_port.return_value = self._get_port_info_dict()
-            self.service.get_ports = mock.Mock()
-            self.service.get_ports.return_value = [self._get_port_info_dict()]
-            self.service.update_port = mock.Mock()
-            self.service.add_router_interface(self.context,
-                                              self.router_id,
-                                              r_intf)
-            self.service.server.plug_router_interface.assert_called_once_with(
-                network_id=self.network_id,
-                router_id=self.router_id,
-                cidr=self.cidr,
-                subnet_id=self.subnet_id,
-                interface_ip=self.gateway_ip
-            )
+            with mock.patch('neutron.services.l3_router.l3_pluribus.PluribusRouterPlugin.core_plugin', new_callable=PropertyMock) as mock_core_plugin:
+                mock_core_plugin.return_value = mock_ml2
+                add_intf.return_value = r_intf
+                self.service.get_subnet = mock.Mock()
+                self.service.get_subnet.return_value = self._get_subnet_info_dict()
+		self.service.core_plugin.create_port = mock.Mock()
+                self.service.core_plugin.create_port.return_value = self._get_port_info_dict()
+                self.service.get_ports = mock.Mock()
+                self.service.get_ports.return_value = [self._get_port_info_dict()]
+                self.service.core_plugin.update_port = mock.Mock()
+                self.service.add_router_interface(self.context,
+                                                  self.router_id,
+                                                  r_intf)
+                self.service.server.plug_router_interface.assert_called_once_with(
+                    network_id=self.network_id,
+                    router_id=self.router_id,
+                    cidr=self.cidr,
+                    subnet_id=self.subnet_id,
+                    interface_ip=self.gateway_ip
+                )
 
     def test_remove_router_interface(self):
         r_intf = self._get_router_interface_dict()

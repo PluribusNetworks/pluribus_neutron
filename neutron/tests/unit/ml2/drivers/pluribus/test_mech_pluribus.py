@@ -12,17 +12,11 @@
 import mock
 
 from neutron.services.l3_router.l3_pluribus import PluribusRouterPlugin
-from neutron.plugins.ml2.drivers.mech_pluribus import mech_pluribus as pluribus
+from neutron.plugins.ml2.drivers.pluribus import mech_pluribus as pluribus
 from neutron.plugins.common import constants
 from neutron.tests import base
 from oslo.config import cfg
 from neutron import manager
-
-pluribus_opts = [
-    cfg.BoolOpt(
-        'pn_dhcp', default=True)
-]
-cfg.CONF.register_opts(pluribus_opts, 'PLURIBUS_PLUGINS')
 
 
 class Network(object):

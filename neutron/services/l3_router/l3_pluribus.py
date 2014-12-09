@@ -9,6 +9,7 @@
 # or alteration will be a violation of federal law.
 #
 
+from oslo.config import cfg
 import logging
 
 from neutron import manager
@@ -18,8 +19,10 @@ from neutron.db import db_base_plugin_v2
 from neutron.db import extraroute_db
 from neutron.db import l3_gwmode_db
 from neutron.db import l3_db
+from neutron.i18n import _LI, _LE
 from oslo.utils import importutils
 from neutron.plugins.common import constants
+from neutron.plugins.ml2.drivers.pluribus import config  # noqa
 
 LOG = logging.getLogger(__name__)
 
@@ -65,7 +68,7 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         r = self.create_router_db(context, router)
         try:
             self.server.create_router(**r)
-            LOG.info(_LI("Pluribus successfully created router", r['id']))
+            LOG.info(_LI("Pluribus successfully created router %s" % r['id']))
 
         except Exception as e:
             LOG.error(_LE("Failed to create router, rolling back"))
@@ -83,9 +86,9 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         r = {'router_id': id}
         try:
             self.server.delete_router(**r)
-            LOG.info(_LI("Pluribus successfully deleted router", id))
+            LOG.info(_LI("Pluribus successfully deleted router %s" % id))
         except Exception as e:
-            LOG.error(_LE("Failed to delete router", id))
+            LOG.error(_LE("Failed to delete router %s" % id))
             raise e
 
     def update_router(self, context, id, router):
@@ -137,9 +140,9 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         try:
             self.server.update_router(**updt_router)
-            LOG.info(_LI("Pluribus updated the router successfully", id))
+            LOG.info(_LI("Pluribus updated the router successfully %s" % id))
         except Exception as e:
-            LOG.error(_LE("Failed to update the router", id))
+            LOG.error(_LE("Failed to update the router %s" % id))
             raise e
 
         return updt_router
@@ -211,12 +214,10 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         try:
             self.server.plug_router_interface(**router)
             LOG.info(_LI("Pluribus added the router interface successfully"
-                         "on port", interface['port_id'],
-                         "on subnet", interface['subnet_id']))
+                         "on subnet %s" % router['subnet_id']))
         except Exception as e:
             LOG.error(_LE('add router interface failed, rolling back for'
-                          ' port', interface['port_id'], 'and subnet',
-                          interface['subnet_id']))
+                          ' subnet %s' % router['subnet_id']))
             super(PluribusRouterPlugin, self).\
                 remove_router_interface(context, router_id, interface_info)
 
@@ -280,10 +281,11 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         try:
             self.server.unplug_router_interface(**router)
             LOG.info(_LI("Pluribus removed the router interface successfully"
-                     "from router", router_id, "on subnet", subnet_id))
+                     "from router %s on subnet %s" % (router_id, subnet_id)))
         except Exception as e:
-            LOG.error(_LE('remove router interface failed for router',
-                      router_id, 'and subnet', subnet_id))
+            LOG.error(_LE('remove router interface failed for router %s and'
+                      ' subnet %s' % (router_id, subnet_id)))
+            raise e
 
     def get_external_port_info(self, context, router_id):
         LOG.debug(('get_external_port_info ', router_id))
@@ -374,10 +376,10 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
 
         try:
             self.server.create_floatingip(**fip)
-            LOG.info(_LI('Pluribus created floating IP successfully',
+            LOG.info(_LI('Pluribus created floating IP successfully %s' %
                      fip['id']))
         except Exception as e:
-            LOG.error(_LE('create_floatingip failed, rolling back',
+            LOG.error(_LE('create_floatingip failed, rolling back %s' %
                       fip['id']))
             super(PluribusRouterPlugin, self).delete_floatingip(
                 context, fip['id'])
@@ -397,9 +399,9 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
             ufip['subnet_id'] = subnet_id
         try:
             self.server.update_floatingip(**ufip)
-            LOG.info(_LI('Pluribus updated floating IP successfully', id))
+            LOG.info(_LI('Pluribus updated floating IP successfully %s' % id))
         except Exception as e:
-            LOG.error(_LE('update_floatingip failed', id))
+            LOG.error(_LE('update_floatingip failed %s' % id))
             raise e
         return ufip
 
@@ -410,9 +412,9 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
         fip = {'id': id}
         try:
             self.server.delete_floatingip(**fip)
-            LOG.info(_LI('Pluribus deleted floating IP successfully', id))
+            LOG.info(_LI('Pluribus deleted floating IP successfully %s' % id))
         except Exception as e:
-            LOG.error(_LE('delete_floatingip failed', id))
+            LOG.error(_LE('delete_floatingip failed %s' % id))
             raise e
 
     def _get_floatingip_subnet(self, context, fip):
@@ -439,9 +441,9 @@ class PluribusRouterPlugin(db_base_plugin_v2.NeutronDbPluginV2,
                 fid = {'id': floating_ip_ids}
                 try:
                     self.server.disassociate_floatingips(**fid)
-		    LOG.info(_LI('Pluribus disassociated floating IP'
-				 ' successfully', fid['id']))
+                    LOG.info(_LI('Pluribus disassociated floating IP'
+				 ' successfully %s' % fid['id']))
                 except Exception as e:
-                    LOG.error(_LE('disassociate_floatingips failed',
+                    LOG.error(_LE('disassociate_floatingips failed %s' %
                               fid['id']))
                     raise e

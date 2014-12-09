@@ -10,9 +10,11 @@
 #
 
 from neutron.openstack.common import log as logging
-from neutron.openstack.common.gettextutils import _LI, _LE
+from neutron.i18n import _LI, _LE
 from neutron.plugins.common import constants
+from neutron.plugins.ml2.drivers.pluribus import config  # noqa
 from neutron.db.loadbalancer import loadbalancer_db as ldb
+from oslo.config import cfg
 from oslo.utils import importutils
 
 LOG = logging.getLogger(__name__)
@@ -44,12 +46,12 @@ class PluribusLoadBalancerDriver(object):
             self.server.create_vip(**vip)
             self.plugin.update_status(context, ldb.Vip, vip['id'],
                                       constants.ACTIVE)
-            LOG.info(_LI("Pluribus LB Driver successfully created Vip",
+            LOG.info(_LI("Pluribus LB Driver successfully created Vip %s" %
                      vip['id']))
         except Exception as e:
             self.plugin.update_status(context, ldb.Vip, vip['id'],
                                       constants.ERROR)
-            LOG.error(_LE("Pluribus LB Driver failed to create Vip",
+            LOG.error(_LE("Pluribus LB Driver failed to create Vip %s" %
                       vip['id']))
             raise e
 
@@ -59,12 +61,12 @@ class PluribusLoadBalancerDriver(object):
         try:
             self.server.delete_vip(**vip)
 
-            LOG.info(_LI("Pluribus LB Driver successfully deleted Vip",
+            LOG.info(_LI("Pluribus LB Driver successfully deleted Vip %s" %
                      vip['id']))
         except Exception as e:
             self.plugin.update_status(context, ldb.Vip, vip['id'],
                                       constants.ERROR)
-            LOG.error(_LE("Pluribus LB Driver failed to delete Vip",
+            LOG.error(_LE("Pluribus LB Driver failed to delete Vip %s" %
                       vip['id']))
             raise e
 
@@ -75,12 +77,12 @@ class PluribusLoadBalancerDriver(object):
             self.server.create_pool(**pool)
             self.plugin.update_status(context, ldb.Pool, pool['id'],
                                       constants.ACTIVE)
-            LOG.info(_LI("Pluribus LB Driver successfully created Pool",
+            LOG.info(_LI("Pluribus LB Driver successfully created Pool %s" %
                      pool['id']))
         except Exception as e:
             self.plugin.update_status(context, ldb.Pool, pool['id'],
                                       constants.ERROR)
-            LOG.error(_LE("Pluribus LB Driver failed to create Pool",
+            LOG.error(_LE("Pluribus LB Driver failed to create Pool %s" %
                       pool['id']))
             raise e
 
@@ -89,12 +91,12 @@ class PluribusLoadBalancerDriver(object):
 
         try:
             self.server.delete_pool(**pool)
-            LOG.info(_LI("Pluribus LB Driver successfully deleted Pool",
+            LOG.info(_LI("Pluribus LB Driver successfully deleted Pool %s" %
                      pool['id']))
         except Exception as e:
             self.plugin.update_status(context, ldb.Pool, pool['id'],
                                       constants.ERROR)
-            LOG.error(_LE("Pluribus LB Driver failed to delete Pool",
+            LOG.error(_LE("Pluribus LB Driver failed to delete Pool %s" %
                       pool['id']))
             raise e
 
@@ -105,13 +107,13 @@ class PluribusLoadBalancerDriver(object):
             self.server.create_member(**member)
             self.plugin.update_status(context, ldb.Member, member['id'],
                                       constants.ACTIVE)
-            LOG.info(_LI("Pluribus LB Driver successfully created Member",
+            LOG.info(_LI("Pluribus LB Driver successfully created Member %s" %
                      member['id']))
             return member
         except Exception as e:
             self.plugin.update_status(context, ldb.Member, member['id'],
                                       constants.ERROR)
-            LOG.error(_LE("Pluribus LB Driver failed to create member"
+            LOG.error(_LE("Pluribus LB Driver failed to create Member %s" %
                       member['id']))
             raise e
 
@@ -120,12 +122,12 @@ class PluribusLoadBalancerDriver(object):
 
         try:
             self.server.delete_member(**member)
-            LOG.info(_LI("Pluribus LB Driver successfully deleted Member",
+            LOG.info(_LI("Pluribus LB Driver successfully deleted Member %s" %
                      member['id']))
         except Exception as e:
             self.plugin.update_status(context, ldb.Member, member['id'],
                                       constants.ERROR)
-            LOG.error(_LE("Pluribus LB Driver failed to delete Member",
+            LOG.error(_LE("Pluribus LB Driver failed to delete Member %s" %
                       member['id']))
             raise e
 
@@ -135,10 +137,10 @@ class PluribusLoadBalancerDriver(object):
         try:
             self.server.delete_health(**health_monitor)
             LOG.info(_LI("Pluribus LB Driver successfully created health "
-                     "monitor for pool_id", pool_id))
+                     "monitor for pool_id %s" % pool_id))
         except Exception as e:
             LOG.error(_LE("Pluribus LB Driver failed to delete health "
-                      "monitor for pool_id", pool_id))
+                      "monitor for pool_id %s" % pool_id))
             self.plugin.update_pool_health_monitor(context,
                                                    health_monitor["id"],
                                                    pool_id,
@@ -156,11 +158,11 @@ class PluribusLoadBalancerDriver(object):
                                                    pool_id,
                                                    constants.ACTIVE)
             LOG.info(_LI("Pluribus LB Driver successfully created health "
-                     "monitor for pool_id", pool_id))
+                     "monitor for pool_id %s" % pool_id))
             return health_monitor
         except Exception as e:
             LOG.error(_LE("Pluribus LB Driver failed to create health "
-                      "monitor for pool_id", pool_id))
+                      "monitor for pool_id %s" % pool_id))
             self.plugin.update_pool_health_monitor(context,
                                                    health_monitor["id"],
                                                    pool_id,
