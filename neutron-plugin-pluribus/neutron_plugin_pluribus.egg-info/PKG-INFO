@@ -1,0 +1,14 @@
+Metadata-Version: 1.1
+Name: neutron-plugin-pluribus
+Version: 2015.1.1
+Summary: OpenStack Neutron Pluribus plugin
+Home-page: http://www.pluribusnetworks.com
+Author: Pluribus Networks
+Author-email: openstack@pluribusnetworks.com
+License: Apache License, Version 2.0
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Programming Language :: Python :: 2.7
