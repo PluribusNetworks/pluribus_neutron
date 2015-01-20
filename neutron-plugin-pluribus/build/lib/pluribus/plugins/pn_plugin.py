@@ -12,3 +12,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
+from neutron.plugins.ml2 import plugin
+class PluribusGenericPlugin(plugin.Ml2Plugin):
+
+    def __init__(self):
+        super(PluribusGenericPlugin, self).__init__()
