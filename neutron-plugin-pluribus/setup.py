@@ -26,7 +26,7 @@ setuptools.setup(
     packages=setuptools.find_packages(
         exclude=['*.tests','*.tests.*','tests.*','tests']),
     url='http://www.pluribusnetworks.com',
-    version='2015.1.1',
+    version='2015.1.2',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Programming Language :: Python :: 2',
