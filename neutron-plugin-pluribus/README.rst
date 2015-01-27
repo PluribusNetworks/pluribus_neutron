@@ -24,6 +24,33 @@ To install the plugin:
   $ python setup.py install
 4. Edit /etc/neutron/neutron.conf to set the core_plugin to the Pluribus plugin:
   core_plugin = neutron.plugins.pluribus.plugin.PluribusDecompPluginV2
-5. Restart the Neutron server:
+5. Add the following section in /etc/neutron/neutron.conf:
+  
+  [PLURIBUS_PLUGINS]
+  
+  # The neutron core plugin that Pluribus internally uses
+  
+  vswitch_plugin = neutron.plugins.ml2.plugin.Ml2Plugin
+  
+  # The allocated VLAN range for this openstack controller from the Pluribus switch
+  
+  pn_vlans = 100-200
+  
+  # Flag to set if we run the DHCP server on the Pluribus switch or not
+  
+  pn_dhcp = True
+  
+  # Address of the Pluribus switch agent interacting with this OpenStack controller
+  
+  pn_switch = 192.168.1.1
+  
+  # The port on which the Pluribus switch agent runs
+  
+  pn_port = 30000
+  
+6. Append the following to /etc/neutron/plugin/ml2/ml2_conf.ini:mechanism_drivers
+  mechanism_drivers = pluribus.plugins.ml2.mech_pluribus.PluribusDriver
+  
+7. Restart the Neutron server:
   $ service neutron-server restart
 
