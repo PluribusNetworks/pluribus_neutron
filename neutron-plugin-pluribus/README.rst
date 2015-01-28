@@ -23,7 +23,7 @@ To install the plugin:
 3. Run:
   $ python setup.py install
 4. Edit /etc/neutron/neutron.conf to set the core_plugin to the Pluribus plugin:
-  core_plugin = neutron.plugins.pluribus.plugin.PluribusDecompPluginV2
+  core_plugin = neutron.plugins.pluribus.plugin.PluribusPlugin
 5. Add the following section in /etc/neutron/neutron.conf:
   
   [PLURIBUS_PLUGINS]
