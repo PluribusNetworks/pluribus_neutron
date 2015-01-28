@@ -1,3 +1,4 @@
+#
 # COPYRIGHT 2015 Pluribus Networks Inc.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -12,19 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo.config import cfg
+from neutron.plugins.ml2 import plugin
+class PluribusGenericPlugin(plugin.Ml2Plugin):
 
-pluribus_plugin_opts = [
-    cfg.StrOpt(
-        'pn_switch',
-        default='',
-        help='Pluribus Switch to connect to'),
-    cfg.IntOpt(
-        'pn_port',
-        default=25000,
-        help='Pluribus Port to connect to'),
-    cfg.StrOpt(
-        'pn_api',
-        help='The wrapper class to send RPC requests')]
-
-cfg.CONF.register_opts(pluribus_plugin_opts, "PLURIBUS_PLUGINS")
+    def __init__(self):
+        super(PluribusGenericPlugin, self).__init__()

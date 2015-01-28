@@ -23,10 +23,12 @@ setuptools.setup(
     license='Apache License, Version 2.0',
     long_description=open("README.rst").read(),
     name='neutron-plugin-pluribus',
+    entry_points={
+        'console_scripts': []},
     packages=setuptools.find_packages(
         exclude=['*.tests','*.tests.*','tests.*','tests']),
     url='http://www.pluribusnetworks.com',
-    version='2015.1.1',
+    version='3.0',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Programming Language :: Python :: 2',

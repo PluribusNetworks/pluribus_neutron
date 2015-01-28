@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 OpenStack Neutron Pluribus Plugin
 ======
 
@@ -11,7 +12,7 @@ This project hosts the Pluribus Networks plugin for OpenStack Neutron.
 
 2. Requirements
 ------
-* OpenStack Havana or Icehouse controller
+* A controller running OpenStack Havana, Icehouse or Juno
 * Pluribus Networks server-switch underneath
 
 3. Installation
@@ -36,10 +37,6 @@ To install the plugin:
   
   pn_vlans = 100-200
   
-  # Flag to set if we run the DHCP server on the Pluribus switch or not
-  
-  pn_dhcp = True
-  
   # Address of the Pluribus switch agent interacting with this OpenStack controller
   
   pn_switch = 192.168.1.1
@@ -53,4 +50,3 @@ To install the plugin:
   
 7. Restart the Neutron server:
   $ service neutron-server restart
-
